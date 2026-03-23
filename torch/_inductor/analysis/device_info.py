@@ -211,7 +211,8 @@ def datasheet_tops(dtype: torch.dtype, is_tf32: bool = False) -> float | None:
     callers always receive the throughput achievable by cuBLAS/cuDNN on
     non-sparse data.
     """
-    name: str | None = torch.cuda.get_device_name()
+    mod = torch.get_device_module(torch.accelerator.current_accelerator())
+    name: str | None = mod.get_device_name()
     if name is None:
         log.info("No device found, returning None")
         return None
