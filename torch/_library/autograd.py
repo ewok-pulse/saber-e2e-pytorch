@@ -31,7 +31,7 @@ def make_autograd_impl(op: _ops.OpOverload, info: InfoProtocol) -> Callable:
         keyset: _C.DispatchKeySet
         keyword_only_args: dict[str, Any]
 
-    def forward_no_grad(*args):
+    def forward_impl(ctx, args, *, run_setup_context: bool):
         metadata = args[-1]
         args = args[:-1]
 
@@ -39,17 +39,7 @@ def make_autograd_impl(op: _ops.OpOverload, info: InfoProtocol) -> Callable:
             keyset = metadata.keyset
             kwargs = metadata.keyword_only_args
             result = op.redispatch(keyset & _C._after_autograd_keyset, *args, **kwargs)
-            return result
-
-    def forward(ctx, *args):
-        metadata = args[-1]
-        args = args[:-1]
-
-        with _C._AutoDispatchBelowAutograd():
-            keyset = metadata.keyset
-            kwargs = metadata.keyword_only_args
-            result = op.redispatch(keyset & _C._after_autograd_keyset, *args, **kwargs)
-            if info._setup_context_fn:
+            if run_setup_context and info._setup_context_fn:
                 # The Dispatcher will remove args that are equal to their default
                 # values from (args, kwargs). We're going to add it back so that
                 # the user can access them.
@@ -69,6 +59,12 @@ def make_autograd_impl(op: _ops.OpOverload, info: InfoProtocol) -> Callable:
                 else:
                     info._setup_context_fn(ctx=ctx, inputs=args, output=result)
             return result
+
+    def forward_no_grad(*args):
+        return forward_impl(None, args, run_setup_context=False)
+
+    def forward(ctx, *args):
+        return forward_impl(ctx, args, run_setup_context=True)
 
     def backward(ctx, *grads):
         if info._backward_fn:
