@@ -31,6 +31,7 @@ import inspect
 import logging
 import math
 import re
+from collections import OrderedDict
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import nullcontext
 from typing import Any, NoReturn, TYPE_CHECKING, TypeVar, Union
@@ -2607,6 +2608,11 @@ class TorchInGraphFunctionVariable(BaseTorchVariable):
                         f"Expected BaseListVariable from autograd.grad with dict inputs, "
                         f"got {type(result)}"
                     )
+                result_cls = (
+                    OrderedDict
+                    if issubclass(inputs_var.user_cls, OrderedDict)
+                    else dict
+                )
                 items: dict[VariableTracker, VariableTracker] = dict(
                     zip(
                         inputs_var.items.keys(),
@@ -2614,7 +2620,7 @@ class TorchInGraphFunctionVariable(BaseTorchVariable):
                         strict=True,
                     )
                 )
-                return ConstDictVariable(items, dict)
+                return ConstDictVariable(items, result_cls)
             return result
 
         @register(torch._functorch.eager_transforms._autograd_grad)
