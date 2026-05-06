@@ -24,3 +24,11 @@ if _HAS_SPMD_TYPES:
         attr = getattr(_spmd_types, name)
         globals()[name] = attr
         return attr
+
+else:
+    import contextlib as _contextlib
+
+    @_contextlib.contextmanager
+    def no_typecheck():
+        """No-op stub when spmd_types is not installed."""
+        yield
