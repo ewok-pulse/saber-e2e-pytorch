@@ -77,6 +77,7 @@ from .variables import (
     ReparametrizeModuleCallVariable,
     SetAttrBuiltinVariable,
     SkipFunctionVariable,
+    StrBuiltinVariable,
     SparseTensorCreationSkipVariable,
     TorchInGraphFunctionVariable,
     UserFunctionVariable,
@@ -4023,6 +4024,7 @@ BUILTIN_CALLABLES = {
     iter: IterBuiltinVariable,
     list: ListBuiltinVariable,
     setattr: SetAttrBuiltinVariable,
+    str: StrBuiltinVariable,
 }
 
 
