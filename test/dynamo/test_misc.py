@@ -6975,6 +6975,103 @@ not ___dict_contains('cccccccc', G['sys'].modules)""",
         actual = torch.compile(fn_pow, backend="eager", fullgraph=True)(a, val)
         self.assertEqual(expected, actual)
 
+    def test_scalar_arg_0d_tensor(self):
+        # Test that ops with Scalar arguments (alpha, beta, value) work with
+        # 0-d tensor inputs under fullgraph=True. The C++ arg parser calls
+        # .item() on 0-d tensors to convert them to Scalars, creating unbacked
+        # symbols that should be ignored since they only affect tensor values,
+        # not shapes.
+        a = torch.randn(4, 4)
+        b = torch.randn(4, 4)
+        alpha = torch.tensor(2.0)
+        beta = torch.tensor(0.5)
+
+        # Tensor.add with alpha kwarg
+        def fn_add_method(a, b, alpha):
+            return a.add(b, alpha=alpha)
+
+        expected = fn_add_method(a, b, alpha)
+        actual = torch.compile(fn_add_method, backend="eager", fullgraph=True)(
+            a, b, alpha
+        )
+        self.assertEqual(expected, actual)
+
+        # Tensor.add with positional alpha (deprecated form)
+        def fn_add_positional(a, b, alpha):
+            return a.add(alpha, b)
+
+        expected = fn_add_positional(a, b, alpha)
+        actual = torch.compile(fn_add_positional, backend="eager", fullgraph=True)(
+            a, b, alpha
+        )
+        self.assertEqual(expected, actual)
+
+        # torch.add with alpha kwarg (function call path)
+        def fn_add_func(a, b, alpha):
+            return torch.add(a, b, alpha=alpha)
+
+        expected = fn_add_func(a, b, alpha)
+        actual = torch.compile(fn_add_func, backend="eager", fullgraph=True)(
+            a, b, alpha
+        )
+        self.assertEqual(expected, actual)
+
+        # Tensor.addcmul with value kwarg
+        c = torch.randn(4, 4)
+
+        def fn_addcmul(a, b, c, value):
+            return a.addcmul(b, c, value=value)
+
+        expected = fn_addcmul(a, b, c, beta)
+        actual = torch.compile(fn_addcmul, backend="eager", fullgraph=True)(
+            a, b, c, beta
+        )
+        self.assertEqual(expected, actual)
+
+        # Tensor.addcmul with positional value (deprecated form)
+        def fn_addcmul_positional(a, b, c, value):
+            return a.addcmul(value, b, c)
+
+        expected = fn_addcmul_positional(a, b, c, beta)
+        actual = torch.compile(fn_addcmul_positional, backend="eager", fullgraph=True)(
+            a, b, c, beta
+        )
+        self.assertEqual(expected, actual)
+
+        # Tensor.addcdiv with value kwarg
+        def fn_addcdiv(a, b, c, value):
+            return a.addcdiv(b, c.abs() + 1, value=value)
+
+        expected = fn_addcdiv(a, b, c, beta)
+        actual = torch.compile(fn_addcdiv, backend="eager", fullgraph=True)(
+            a, b, c, beta
+        )
+        self.assertEqual(expected, actual)
+
+        # Tensor.addcdiv with positional value (deprecated form)
+        def fn_addcdiv_positional(a, b, c, value):
+            return a.addcdiv(value, b, c.abs() + 1)
+
+        expected = fn_addcdiv_positional(a, b, c, beta)
+        actual = torch.compile(fn_addcdiv_positional, backend="eager", fullgraph=True)(
+            a, b, c, beta
+        )
+        self.assertEqual(expected, actual)
+
+        # Tensor.baddbmm with alpha and beta kwargs
+        batch1 = torch.randn(2, 4, 3)
+        batch2 = torch.randn(2, 3, 4)
+        m_batch = torch.randn(2, 4, 4)
+
+        def fn_baddbmm(m, batch1, batch2, alpha, beta):
+            return m.baddbmm(batch1, batch2, alpha=alpha, beta=beta)
+
+        expected = fn_baddbmm(m_batch, batch1, batch2, alpha, beta)
+        actual = torch.compile(fn_baddbmm, backend="eager", fullgraph=True)(
+            m_batch, batch1, batch2, alpha, beta
+        )
+        self.assertEqual(expected, actual)
+
     @unittest.skip("https://github.com/pytorch/pytorch/issues/99726")
     def test_cross_entropy_loss_fancy_ctor1(self):
         rand_5 = torch.randn(5)
